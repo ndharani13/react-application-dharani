@@ -1,30 +1,35 @@
-#choosing the base image as the build stage:
-FROM node:16-alpine as build 
+# Start with a newer Node.js version that is compatible with npm
+FROM node:20-alpine as build
 
-#choosing working directory for the application:
 WORKDIR /app
 
-#copying the package.json file to app directory and installing packages:
-COPY package.json .
-RUN npm install
+# Install the latest npm version
+RUN npm install -g npm@latest
 
-#copying the rest of application code to the working directory:
+# Copy the package.json and package-lock.json files to the container
+COPY package.json package-lock.json ./
+
+# Install all dependencies, including devDependencies (no production flag)
+RUN npm install --legacy-peer-deps
+
+# Copy the rest of the application code
 COPY . .
 
-#building the application:
-RUN npm run build 
+# Build the React app
+RUN npm run build
 
-#second stage base image:
+# Use a smaller image for serving the app (nginx)
 FROM nginx:alpine
 
-#setting the working directory for this base image:
-WORKDIR /usr/share/nginx/html/
+# Set the working directory to /app (optional, based on your comment to keep it consistent)
+WORKDIR /app
 
-#copying the first stage code to this stage
-COPY --from=build /app/build .
+# Copy build files from the previous stage to the default nginx HTML directory
+COPY --from=build /app/build /usr/share/nginx/html/
 
-#exposing the application:
+# Expose port 80 for serving the app
 EXPOSE 80
 
-#Executing the application after creating image:
+# Run Nginx in the foreground
 CMD ["nginx", "-g", "daemon off;"]
+
